@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wyszukiwanie Hoteli</title>
+
+  <!-- Flatpickr CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+
+  <style>
+    body {
+  font-family: Arial, sans-serif;
+  background-color: #f0f2f5;
+  margin: 0;
+  padding: 0;
+  color: #333;
+}
+
+.container {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+input, select, button {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 16px;
+}
+
+button {
+  background-color: #007bff;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+.hotel-card {
+  border: 1px solid #ddd;
+  padding: 16px;
+  margin: 8px 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.hotel-card:hover {
+  transform: translateY(-4px);
+}
+
+.hotel-card img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.hidden {
+  display: none;
+}
+
+#map {
+  width: 100%;
+  height: 300px;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 10px;
+  }
+
+  button {
+    padding: 10px;
+  }
+
+  #map {
+    height: 200px;
+  }
+}
+
+#hotel-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+  </style>
+</head>
+<body>
+  <div class="container" id="search-container">
+    <h1>Wyszukiwanie Hoteli</h1>
+    <form id="search-form">
+      <input type="text" id="destination" placeholder="Podaj miasto" required />
+      <input type="text" id="date-range" placeholder="Wybierz daty" required />
+      <input type="number" id="guests" placeholder="Ilość osób" min="1" required />
+      <button type="submit">Szukaj</button>
+    </form>
+    <div id="results"></div>
+  </div>
+
+  <div class="container hidden" id="details-container">
+    <h2 id="hotel-name"></h2>
+    <img id="hotel-image" src="" alt="Zdjęcie hotelu" />
+    <p id="hotel-description"></p>
+    <p id="hotel-cena"></p>
+    <p><strong>Max. ilość osób:</strong> <span id="hotel-max-os"></span></p>
+    <div id="map"></div>
+    <button id="reserve-btn">Zarezerwuj</button>
+  </div>
+
+  <div class="container hidden" id="reservation-form">
+    <h2>Rezerwacja</h2>
+    <form id="reservation-details">
+      <input type="text" id="first-name" placeholder="Imię" required />
+      <input type="text" id="last-name" placeholder="Nazwisko" required />
+      <input type="email" id="email" placeholder="E-mail" required />
+      <input type="text" id="region" placeholder="Region" required />
+      <input type="text" id="phone" placeholder="Numer telefonu" required />
+      <button type="submit">Potwierdź rezerwację</button>
+    </form>
+  </div>
+
+  <!-- Flatpickr -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <script>
+
+document.getElementById("reserve-btn").addEventListener("click", () => {
+  detailsContainer.classList.add("hidden");
+  reservationForm.classList.remove("hidden");
+});
+
+
+    let selectedHotelId = null;
+    let selectedHotelCoords = null;
+
+    const searchContainer = document.getElementById("search-container");
+    const detailsContainer = document.getElementById("details-container");
+    const reservationForm = document.getElementById("reservation-form");
+    const form = document.getElementById("search-form");
+    const resultsContainer = document.getElementById("results");
+
+    document.addEventListener("DOMContentLoaded", () => {
+      flatpickr("#date-range", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        locale: "pl",
+        minDate: "today",
+      });
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const destination = document.getElementById("destination").value;
+      const dateRange = document.getElementById("date-range").value.split(" to ");
+      const guests = document.getElementById("guests").value;
+
+      if (dateRange.length !== 2) {
+        alert("Wybierz poprawny zakres dat!");
+        return;
+      }
+
+      const [startDate, endDate] = dateRange;
+
+      const response = await fetch("http://localhost:3000/wyszukaj", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          miasto: destination,
+          data_poczatku: startDate,
+          data_konca: endDate,
+          ilosc_osob: guests,
+        }),
+      });
+
+      const hotels = await response.json();
+
+      resultsContainer.innerHTML = hotels
+        .map(
+          (hotel) => `
+        <div class="hotel-card">
+          <h2>${hotel.nazwa}</h2>
+          <img src="${hotel.zdjecie}" alt="Zdjęcie hotelu" />
+          <p>${hotel.opis}</p>
+          <p><strong>Cena za noc: </strong>${hotel.cena}zł</p>
+          <p><strong>Max. ilość osób:</strong> ${hotel.max_os}</p>
+          <button onclick="viewDetails(${hotel.id_hotelu}, '${hotel.lokalizacja}', '${hotel.nazwa}', '${hotel.zdjecie}', '${hotel.opis}', 'Cena za noc: ${hotel.cena}zł', ${hotel.max_os})">Zobacz szczegóły</button>
+        </div>
+      `
+        )
+        .join("");
+    });
+
+    function viewDetails(idHotelu, coords, name, image, description, cena, maxOs) {
+      selectedHotelId = idHotelu;
+      selectedHotelCoords = coords;
+
+      searchContainer.classList.add("hidden");
+      resultsContainer.innerHTML = "";
+
+      detailsContainer.classList.remove("hidden");
+      document.getElementById("hotel-name").innerText = name;
+      document.getElementById("hotel-image").src = image;
+      document.getElementById("hotel-description").innerText = description;
+      document.getElementById("hotel-cena").innerText = cena;
+      document.getElementById("hotel-max-os").innerText = maxOs;
+
+      const [lat, lng] = coords.split(",").map((x) => parseFloat(x));
+      const map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat, lng },
+        zoom: 15,
+      });
+
+      new google.maps.Marker({
+        position: { lat, lng },
+        map,
+      });
+    }
+
+    document.getElementById("reserve-btn").addEventListener("click", () => {
+      detailsContainer.classList.add("hidden");
+      reservationForm.classList.remove("hidden");
+    });
+
+    document.getElementById("reservation-details").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const firstName = document.getElementById("first-name").value;
+      const lastName = document.getElementById("last-name").value;
+      const email = document.getElementById("email").value;
+      const region = document.getElementById("region").value;
+      const phone = document.getElementById("phone").value;
+      const dateRange = document.getElementById("date-range").value.split(" to ");
+
+      if (dateRange.length !== 2 || !selectedHotelId) {
+        alert("Błąd w formularzu rezerwacji!");
+        return;
+      }
+
+      const [startDate, endDate] = dateRange;
+
+      const response = await fetch("http://localhost:3000/rezerwacje", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imie: firstName,
+          nazwisko: lastName,
+          mail: email,
+          region,
+          nr_telefonu: phone,
+          id_hotelu: selectedHotelId,
+          data_poczatku: startDate,
+          data_konca: endDate,
+        }),
+      });
+
+      const result = await response.json();
+      alert(result.message || "Rezerwacja została dokonana!");
+      reservationForm.classList.add("hidden");
+      searchContainer.classList.remove("hidden");
+    });
+  </script>
+
+  <!-- Google Maps API -->
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4ukdTK38XJSCLap67OG5TQZFxrYUy81Q"></script>
+</body>
+</html>
