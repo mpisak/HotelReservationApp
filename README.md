@@ -35,7 +35,7 @@ Prosta aplikacja oparta na Node.js, Express oraz MySQL do wyszukiwania i rezerwa
 
 1. **Sklonuj lub pobierz repozytorium**  
    ```bash
-   git clone https://github.com/nazwaUzytkownika/HotelReservationApp.git
+   git clone https://github.com/mpisak/HotelReservationApp.git
    cd HotelReservationApp
    ```
 
